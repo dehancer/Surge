@@ -1,6 +1,7 @@
 import Foundation
 import Surge
-import XCPlayground
+//import XCPlayground
+//import PlaygroundSupport
 
 // MARK: - Arithmetic
 
@@ -17,15 +18,40 @@ let product = Surge.mul(a, y: b)
 // ⎢      ⎟ * B = ⎢   ⎟         C = ?
 // ⎝ 1 -1 ⎠       ⎝ 1 ⎠
 
-let A = Matrix([[1, 1], [1, -1]])
-let C = Matrix([[3], [1]])
-let B = inv(A) * C
+let A = Matrix([[1, 1, 1], [1, -1, -1], [4, -1, -1]])
+var C = Matrix([[3], [1], [5]])
+
+A
+
+"C=";
+C
+
+do {
+    let B = try inv(A) * C
+
+    "B=";
+    B
+}
+catch let error {
+    print(error)
+}
+
+do {
+    let pivot = try solve(a: A, b: &C)
+    
+    "B=";
+    C
+}
+catch let error {
+    print(error)
+}
+
 
 // MARK: - FFT
 
 func plot<T>(values: [T], title: String) {
     for value in values {
-        XCPlaygroundPage.currentPage.captureValue(value, withIdentifier: title)
+         _=value
     }
 }
 
@@ -33,8 +59,7 @@ let count = 64
 let frequency = 4.0
 let amplitude = 3.0
 
-let x = (0..<count).map{ 2.0 * M_PI / Double(count) * Double($0) * frequency }
+let x = (0..<count).map{ 2.0 * Double.pi / Double(count) * Double($0) * frequency }
 
-plot(sin(x), title:"Sine Wave")
-plot(fft(sin(x)), title:"FFT")
-
+//plot(values: sin(x), title:"Sine Wave")
+plot(values: fft(sin(x)), title:"FFT")

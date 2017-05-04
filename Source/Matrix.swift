@@ -21,6 +21,13 @@
 // THE SOFTWARE.
 
 import Accelerate
+public typealias LAInt = __CLPK_integer // = Int32
+
+enum MatrixError: Error {
+    case matrixIsNotInvertable
+    case equationsIsUnsolved(Int)
+    case equationsArgIsIllegal(Int)
+}
 
 public enum MatrixAxies {
     case row
@@ -29,36 +36,36 @@ public enum MatrixAxies {
 
 public struct Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
     public typealias Element = T
-
+    
     let rows: Int
     let columns: Int
     var grid: [Element]
-
+    
     public init(rows: Int, columns: Int, repeatedValue: Element) {
         self.rows = rows
         self.columns = columns
-
+        
         self.grid = [Element](repeating: repeatedValue, count: rows * columns)
     }
-
+    
     public init(_ contents: [[Element]]) {
         let m: Int = contents.count
         let n: Int = contents[0].count
-        let repeatedValue: Element = 0.0 
-
+        let repeatedValue: Element = 0.0
+        
         self.init(rows: m, columns: n, repeatedValue: repeatedValue)
-
+        
         for (i, row) in contents.enumerated() {
             grid.replaceSubrange(i*n..<i*n+Swift.min(m, row.count), with: row)
         }
     }
-
+    
     public subscript(row: Int, column: Int) -> Element {
         get {
             assert(indexIsValidForRow(row, column: column))
             return grid[(row * columns) + column]
         }
-
+        
         set {
             assert(indexIsValidForRow(row, column: column))
             grid[(row * columns) + column] = newValue
@@ -101,7 +108,7 @@ public struct Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
             }
         }
     }
-
+    
     fileprivate func indexIsValidForRow(_ row: Int, column: Int) -> Bool {
         return row >= 0 && row < rows && column >= 0 && column < columns
     }
@@ -112,10 +119,10 @@ public struct Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
 extension Matrix: CustomStringConvertible {
     public var description: String {
         var description = ""
-
+        
         for i in 0..<rows {
             let contents = (0..<columns).map{"\(self[i, $0])"}.joined(separator: "\t")
-
+            
             switch (i, rows) {
             case (0, 1):
                 description += "(\t\(contents)\t)"
@@ -126,10 +133,10 @@ extension Matrix: CustomStringConvertible {
             default:
                 description += "⎜\t\(contents)\t⎥"
             }
-
+            
             description += "\n"
         }
-
+        
         return description
     }
 }
@@ -140,15 +147,15 @@ extension Matrix: Sequence {
     public func makeIterator() -> AnyIterator<ArraySlice<Element>> {
         let endIndex = rows * columns
         var nextRowStartIndex = 0
-
+        
         return AnyIterator {
             if nextRowStartIndex == endIndex {
                 return nil
             }
-
+            
             let currentRowStartIndex = nextRowStartIndex
             nextRowStartIndex += self.columns
-
+            
             return self.grid[currentRowStartIndex..<nextRowStartIndex]
         }
     }
@@ -164,51 +171,51 @@ public func ==<T> (lhs: Matrix<T>, rhs: Matrix<T>) -> Bool {
 
 public func add(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
     precondition(x.rows == y.rows && x.columns == y.columns, "Matrix dimensions not compatible with addition")
-
+    
     var results = y
     cblas_saxpy(Int32(x.grid.count), 1.0, x.grid, 1, &(results.grid), 1)
-
+    
     return results
 }
 
 public func add(_ x: Matrix<Double>, y: Matrix<Double>) -> Matrix<Double> {
     precondition(x.rows == y.rows && x.columns == y.columns, "Matrix dimensions not compatible with addition")
-
+    
     var results = y
     cblas_daxpy(Int32(x.grid.count), 1.0, x.grid, 1, &(results.grid), 1)
-
+    
     return results
 }
 
 public func mul(_ alpha: Float, x: Matrix<Float>) -> Matrix<Float> {
     var results = x
     cblas_sscal(Int32(x.grid.count), alpha, &(results.grid), 1)
-
+    
     return results
 }
 
 public func mul(_ alpha: Double, x: Matrix<Double>) -> Matrix<Double> {
     var results = x
     cblas_dscal(Int32(x.grid.count), alpha, &(results.grid), 1)
-
+    
     return results
 }
 
 public func mul(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
     precondition(x.columns == y.rows, "Matrix dimensions not compatible with multiplication")
-
+    
     var results = Matrix<Float>(rows: x.rows, columns: y.columns, repeatedValue: 0.0)
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, Int32(x.rows), Int32(y.columns), Int32(x.columns), 1.0, x.grid, Int32(x.columns), y.grid, Int32(y.columns), 0.0, &(results.grid), Int32(results.columns))
-
+    
     return results
 }
 
 public func mul(_ x: Matrix<Double>, y: Matrix<Double>) -> Matrix<Double> {
     precondition(x.columns == y.rows, "Matrix dimensions not compatible with multiplication")
-
+    
     var results = Matrix<Double>(rows: x.rows, columns: y.columns, repeatedValue: 0.0)
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, Int32(x.rows), Int32(y.columns), Int32(x.columns), 1.0, x.grid, Int32(x.columns), y.grid, Int32(y.columns), 0.0, &(results.grid), Int32(results.columns))
-
+    
     return results
 }
 
@@ -226,14 +233,14 @@ public func elmul(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
     return result
 }
 
-public func div(_ x: Matrix<Double>, y: Matrix<Double>) -> Matrix<Double> {
-    let yInv = inv(y)
+public func div(_ x: Matrix<Double>, y: Matrix<Double>) throws -> Matrix<Double> {
+    let yInv = try inv(y)
     precondition(x.columns == yInv.rows, "Matrix dimensions not compatible")
     return mul(x, y: yInv)
 }
 
-public func div(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
-    let yInv = inv(y)
+public func div(_ x: Matrix<Float>, y: Matrix<Float>) throws -> Matrix<Float> {
+    let yInv = try inv(y)
     precondition(x.columns == yInv.rows, "Matrix dimensions not compatible")
     return mul(x, y: yInv)
 }
@@ -281,55 +288,59 @@ public func sum(_ x: Matrix<Double>, axies: MatrixAxies = .column) -> Matrix<Dou
     }
 }
 
-public func inv(_ x : Matrix<Float>) -> Matrix<Float> {
+public func inv(_ x : Matrix<Float>) throws -> Matrix<Float> {
     precondition(x.rows == x.columns, "Matrix must be square")
-
+    
     var results = x
-
+    
     var ipiv = [__CLPK_integer](repeating: 0, count: x.rows * x.rows)
     var lwork = __CLPK_integer(x.columns * x.columns)
     var work = [CFloat](repeating: 0.0, count: Int(lwork))
     var error: __CLPK_integer = 0
     var nc = __CLPK_integer(x.columns)
-
+    
     sgetrf_(&nc, &nc, &(results.grid), &nc, &ipiv, &error)
     sgetri_(&nc, &(results.grid), &nc, &ipiv, &work, &lwork, &error)
-
-    assert(error == 0, "Matrix not invertible")
-
+    
+    guard error == 0 else {
+        throw MatrixError.matrixIsNotInvertable
+    }
+    
     return results
 }
 
-public func inv(_ x : Matrix<Double>) -> Matrix<Double> {
+public func inv(_ x : Matrix<Double>) throws-> Matrix<Double> {
     precondition(x.rows == x.columns, "Matrix must be square")
-
+    
     var results = x
-
+    
     var ipiv = [__CLPK_integer](repeating: 0, count: x.rows * x.rows)
     var lwork = __CLPK_integer(x.columns * x.columns)
     var work = [CDouble](repeating: 0.0, count: Int(lwork))
     var error: __CLPK_integer = 0
     var nc = __CLPK_integer(x.columns)
-
+    
     dgetrf_(&nc, &nc, &(results.grid), &nc, &ipiv, &error)
     dgetri_(&nc, &(results.grid), &nc, &ipiv, &work, &lwork, &error)
-
-    assert(error == 0, "Matrix not invertible")
-
+    
+    guard error == 0 else {
+        throw MatrixError.matrixIsNotInvertable
+    }
+    
     return results
 }
 
 public func transpose(_ x: Matrix<Float>) -> Matrix<Float> {
     var results = Matrix<Float>(rows: x.columns, columns: x.rows, repeatedValue: 0.0)
     vDSP_mtrans(x.grid, 1, &(results.grid), 1, vDSP_Length(results.rows), vDSP_Length(results.columns))
-
+    
     return results
 }
 
 public func transpose(_ x: Matrix<Double>) -> Matrix<Double> {
     var results = Matrix<Double>(rows: x.columns, columns: x.rows, repeatedValue: 0.0)
     vDSP_mtransD(x.grid, 1, &(results.grid), 1, vDSP_Length(results.rows), vDSP_Length(results.columns))
-
+    
     return results
 }
 
@@ -359,12 +370,12 @@ public func * (lhs: Matrix<Double>, rhs: Matrix<Double>) -> Matrix<Double> {
     return mul(lhs, y: rhs)
 }
 
-public func / (lhs: Matrix<Double>, rhs: Matrix<Double>) -> Matrix<Double> {
-    return div(lhs, y: rhs)
+public func / (lhs: Matrix<Double>, rhs: Matrix<Double>) throws -> Matrix<Double> {
+    return try div(lhs, y: rhs)
 }
 
-public func / (lhs: Matrix<Float>, rhs: Matrix<Float>) -> Matrix<Float> {
-    return div(lhs, y: rhs)
+public func / (lhs: Matrix<Float>, rhs: Matrix<Float>) throws -> Matrix<Float> {
+    return try div(lhs, y: rhs)
 }
 
 public func / (lhs: Matrix<Double>, rhs: Double) -> Matrix<Double> {
@@ -386,4 +397,60 @@ public postfix func ′ (value: Matrix<Float>) -> Matrix<Float> {
 
 public postfix func ′ (value: Matrix<Double>) -> Matrix<Double> {
     return transpose(value)
+}
+
+public func solve(a A:Matrix<Float>, b B: inout Matrix<Float>) throws -> [LAInt] {
+    
+    var A = A
+    
+    let equations = A.rows
+    
+    var numberOfEquations = LAInt(A.rows)
+    var columnsInA        = LAInt(A.columns)
+    var elementsInB       = LAInt(B.rows)
+    var bSolutionCount    = LAInt(1)
+    
+    var outputOk: LAInt = 0
+    var pivot = [LAInt](repeating: 0, count: equations)
+    
+    sgesv_( &numberOfEquations, &bSolutionCount, &A.grid, &columnsInA, &pivot, &B.grid, &elementsInB, &outputOk)
+    
+    guard outputOk == 0 else {
+        if outputOk < 0 {
+            throw MatrixError.equationsArgIsIllegal(Int(-outputOk))
+        }
+        else {
+               throw MatrixError.equationsIsUnsolved(Int(outputOk))
+        }
+    }
+    
+    return pivot
+}
+
+public func solve(a A:Matrix<Double>, b B: inout Matrix<Double>) throws -> [LAInt] {
+    
+    var A = A
+    
+    let equations = A.rows
+    
+    var numberOfEquations = LAInt(A.rows)
+    var columnsInA        = LAInt(A.columns)
+    var elementsInB       = LAInt(B.rows)
+    var bSolutionCount    = LAInt(1)
+    
+    var outputOk: LAInt = 0
+    var pivot = [LAInt](repeating: 0, count: equations)
+    
+    dgesv_( &numberOfEquations, &bSolutionCount, &A.grid, &columnsInA, &pivot, &B.grid, &elementsInB, &outputOk)
+    
+    guard outputOk == 0 else {
+        if outputOk < 0 {
+            throw MatrixError.equationsArgIsIllegal(Int(-outputOk))
+        }
+        else {
+            throw MatrixError.equationsIsUnsolved(Int(outputOk))
+        }
+    }
+    
+    return pivot
 }
