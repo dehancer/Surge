@@ -401,7 +401,8 @@ public postfix func ′ (value: Matrix<Double>) -> Matrix<Double> {
 
 public func solve(a A:Matrix<Float>, b B: inout Matrix<Float>) throws -> [LAInt] {
     
-    var A = A
+    let AT  = transpose(A)
+    var AAT = AT
     
     let equations = A.rows
     
@@ -413,7 +414,25 @@ public func solve(a A:Matrix<Float>, b B: inout Matrix<Float>) throws -> [LAInt]
     var outputOk: LAInt = 0
     var pivot = [LAInt](repeating: 0, count: equations)
     
-    sgesv_( &numberOfEquations, &bSolutionCount, &A.grid, &columnsInA, &pivot, &B.grid, &elementsInB, &outputOk)
+    if B.columns == 1 {
+        sgesv_( &numberOfEquations, &bSolutionCount, &AAT.grid, &columnsInA, &pivot, &B.grid, &elementsInB, &outputOk)
+    }
+    else if B.columns > 1 {
+        let n = Int32(B.rows)
+        let cn = Int32(B.columns)
+        var v = [Float](repeating:0, count:B.rows)
+        for c in 0..<B.columns {
+            let address = UnsafePointer(B.grid) + c
+            cblas_scopy(n, address, cn, &v, 1)
+            sgesv_( &numberOfEquations, &bSolutionCount, &AAT.grid, &columnsInA, &pivot, &v, &elementsInB, &outputOk)
+            AAT = AT
+            B[column:c] = v
+        }
+    }
+    else {
+        throw MatrixError.equationsArgIsIllegal(Int(-1))
+    }
+
     
     guard outputOk == 0 else {
         if outputOk < 0 {
@@ -429,7 +448,8 @@ public func solve(a A:Matrix<Float>, b B: inout Matrix<Float>) throws -> [LAInt]
 
 public func solve(a A:Matrix<Double>, b B: inout Matrix<Double>) throws -> [LAInt] {
     
-    var A = A
+    let AT  = transpose(A)
+    var AAT = AT
     
     let equations = A.rows
     
@@ -441,7 +461,24 @@ public func solve(a A:Matrix<Double>, b B: inout Matrix<Double>) throws -> [LAIn
     var outputOk: LAInt = 0
     var pivot = [LAInt](repeating: 0, count: equations)
     
-    dgesv_( &numberOfEquations, &bSolutionCount, &A.grid, &columnsInA, &pivot, &B.grid, &elementsInB, &outputOk)
+    if B.columns == 1 {
+        dgesv_( &numberOfEquations, &bSolutionCount, &AAT.grid, &columnsInA, &pivot, &B.grid, &elementsInB, &outputOk)
+    }
+    else if B.columns > 1 {
+        let n = Int32(B.rows)
+        let cn = Int32(B.columns)
+        var v = [Double](repeating:0, count:B.rows)
+        for c in 0..<B.columns {
+            let address = UnsafePointer(B.grid) + c
+            cblas_dcopy(n, address, cn, &v, 1)
+            dgesv_( &numberOfEquations, &bSolutionCount, &AAT.grid, &columnsInA, &pivot, &v, &elementsInB, &outputOk)
+            AAT = AT
+            B[column:c] = v
+        }
+    }
+    else {
+        throw MatrixError.equationsArgIsIllegal(Int(-1))
+    }
     
     guard outputOk == 0 else {
         if outputOk < 0 {
