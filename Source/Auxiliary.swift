@@ -181,3 +181,56 @@ public func trunc(_ x: [Double]) -> [Double] {
 
     return results
 }
+
+
+
+//
+// https://github.com/dboyliao/NumSwift
+//
+
+/**
+ Return evenly spaced numbers over a specified interval.
+ 
+ - Parameters:
+ - start: the value where the interval starts.
+ - end: the value where the interval ends.
+ - num: number of samples to be generated.
+ 
+ - Returns: An double precision array of `num` many equally spaced samples.
+ */
+public func linspace(_ start:Double, _ end:Double, num:Int = 100) -> [Double]{
+    
+    precondition(start <= end, "start must be no larger than end.")
+    
+    var startDouble = Double(start)
+    var endDouble = Double(end)
+    var result = [Double](repeating: 0.0, count: num)
+    
+    vDSP_vgenD(&startDouble, &endDouble, &result, 1, vDSP_Length(num))
+    
+    return result
+    
+}
+
+/**
+ Return evenly spaced numbers over a specified interval.
+ 
+ - Parameters:
+ - start: the value where the interval starts.
+ - end: the value where the interval ends.
+ - num: number of samples to be generated.
+ 
+ - Returns: An single precision array of `num` many equally spaced samples.
+ */
+public func linspace(_ start:Float, _ end:Float, num:Int = 100) -> [Float]{
+    
+    precondition(start <= end, "start must be no larger than end.")
+    
+    var startFloat = Float(start)
+    var endFloat = Float(end)
+    var result = [Float](repeating: 0.0, count: num)
+    
+    vDSP_vgen(&startFloat, &endFloat, &result, 1, vDSP_Length(num))
+    
+    return result
+}
