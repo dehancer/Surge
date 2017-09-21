@@ -34,24 +34,24 @@ public enum MatrixAxies {
     case column
 }
 
-public struct Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
-    public typealias Element = T
+public class Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
+    public typealias MatrixElement = T
     
     let rows: Int
     let columns: Int
-    var grid: [Element]
+    var grid: [MatrixElement]
     
-    public init(rows: Int, columns: Int, repeatedValue: Element) {
+    public init(rows: Int, columns: Int, repeatedValue: MatrixElement) {
         self.rows = rows
         self.columns = columns
         
-        self.grid = [Element](repeating: repeatedValue, count: rows * columns)
+        self.grid = [MatrixElement](repeating: repeatedValue, count: rows * columns)
     }
     
-    public init(_ contents: [[Element]]) {
+    public convenience init(_ contents: [[MatrixElement]]) {
         let m: Int = contents.count
         let n: Int = contents[0].count
-        let repeatedValue: Element = 0.0
+        let repeatedValue: MatrixElement = 0.0
         
         self.init(rows: m, columns: n, repeatedValue: repeatedValue)
         
@@ -60,7 +60,7 @@ public struct Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
         }
     }
     
-    public subscript(row: Int, column: Int) -> Element {
+    public subscript(row: Int, column: Int) -> MatrixElement {
         get {
             assert(indexIsValidForRow(row, column: column))
             return grid[(row * columns) + column]
@@ -72,7 +72,7 @@ public struct Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
         }
     }
     
-    public subscript(row row: Int) -> [Element] {
+    public subscript(row row: Int) -> [MatrixElement] {
         get {
             assert(row < rows)
             let startIndex = row * columns
@@ -89,9 +89,9 @@ public struct Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
         }
     }
     
-    public subscript(column column: Int) -> [Element] {
+    public subscript(column column: Int) -> [MatrixElement] {
         get {
-            var result = [Element](repeating: 0.0, count: rows)
+            var result = [MatrixElement](repeating: 0.0, count: rows)
             for i in 0..<rows {
                 let index = i * columns + column
                 result[i] = self.grid[index]
@@ -143,8 +143,8 @@ extension Matrix: CustomStringConvertible {
 
 // MARK: - SequenceType
 
-extension Matrix: Sequence {
-    public func makeIterator() -> AnyIterator<ArraySlice<Element>> {
+extension Matrix: Sequence{
+    public func makeIterator() -> AnyIterator<ArraySlice<MatrixElement>> {
         let endIndex = rows * columns
         var nextRowStartIndex = 0
         
@@ -172,7 +172,7 @@ public func ==<T> (lhs: Matrix<T>, rhs: Matrix<T>) -> Bool {
 public func add(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
     precondition(x.rows == y.rows && x.columns == y.columns, "Matrix dimensions not compatible with addition")
     
-    var results = y
+    let results = y
     cblas_saxpy(Int32(x.grid.count), 1.0, x.grid, 1, &(results.grid), 1)
     
     return results
@@ -181,21 +181,21 @@ public func add(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
 public func add(_ x: Matrix<Double>, y: Matrix<Double>) -> Matrix<Double> {
     precondition(x.rows == y.rows && x.columns == y.columns, "Matrix dimensions not compatible with addition")
     
-    var results = y
+    let results = y
     cblas_daxpy(Int32(x.grid.count), 1.0, x.grid, 1, &(results.grid), 1)
     
     return results
 }
 
 public func mul(_ alpha: Float, x: Matrix<Float>) -> Matrix<Float> {
-    var results = x
+    let results = x
     cblas_sscal(Int32(x.grid.count), alpha, &(results.grid), 1)
     
     return results
 }
 
 public func mul(_ alpha: Double, x: Matrix<Double>) -> Matrix<Double> {
-    var results = x
+    let results = x
     cblas_dscal(Int32(x.grid.count), alpha, &(results.grid), 1)
     
     return results
@@ -204,7 +204,7 @@ public func mul(_ alpha: Double, x: Matrix<Double>) -> Matrix<Double> {
 public func mul(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
     precondition(x.columns == y.rows, "Matrix dimensions not compatible with multiplication")
     
-    var results = Matrix<Float>(rows: x.rows, columns: y.columns, repeatedValue: 0.0)
+    let results = Matrix<Float>(rows: x.rows, columns: y.columns, repeatedValue: 0.0)
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, Int32(x.rows), Int32(y.columns), Int32(x.columns), 1.0, x.grid, Int32(x.columns), y.grid, Int32(y.columns), 0.0, &(results.grid), Int32(results.columns))
     
     return results
@@ -213,7 +213,7 @@ public func mul(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
 public func mul(_ x: Matrix<Double>, y: Matrix<Double>) -> Matrix<Double> {
     precondition(x.columns == y.rows, "Matrix dimensions not compatible with multiplication")
     
-    var results = Matrix<Double>(rows: x.rows, columns: y.columns, repeatedValue: 0.0)
+    let results = Matrix<Double>(rows: x.rows, columns: y.columns, repeatedValue: 0.0)
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, Int32(x.rows), Int32(y.columns), Int32(x.columns), 1.0, x.grid, Int32(x.columns), y.grid, Int32(y.columns), 0.0, &(results.grid), Int32(results.columns))
     
     return results
@@ -221,14 +221,14 @@ public func mul(_ x: Matrix<Double>, y: Matrix<Double>) -> Matrix<Double> {
 
 public func elmul(_ x: Matrix<Double>, y: Matrix<Double>) -> Matrix<Double> {
     precondition(x.rows == y.rows && x.columns == y.columns, "Matrix must have the same dimensions")
-    var result = Matrix<Double>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
+    let result = Matrix<Double>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
     result.grid = x.grid * y.grid
     return result
 }
 
 public func elmul(_ x: Matrix<Float>, y: Matrix<Float>) -> Matrix<Float> {
     precondition(x.rows == y.rows && x.columns == y.columns, "Matrix must have the same dimensions")
-    var result = Matrix<Float>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
+    let result = Matrix<Float>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
     result.grid = x.grid * y.grid
     return result
 }
@@ -246,25 +246,25 @@ public func div(_ x: Matrix<Float>, y: Matrix<Float>) throws -> Matrix<Float> {
 }
 
 public func pow(_ x: Matrix<Double>, _ y: Double) -> Matrix<Double> {
-    var result = Matrix<Double>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
+    let result = Matrix<Double>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
     result.grid = pow(x.grid, y)
     return result
 }
 
 public func pow(_ x: Matrix<Float>, _ y: Float) -> Matrix<Float> {
-    var result = Matrix<Float>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
+    let result = Matrix<Float>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
     result.grid = pow(x.grid, y)
     return result
 }
 
 public func exp(_ x: Matrix<Double>) -> Matrix<Double> {
-    var result = Matrix<Double>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
+    let result = Matrix<Double>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
     result.grid = exp(x.grid)
     return result
 }
 
 public func exp(_ x: Matrix<Float>) -> Matrix<Float> {
-    var result = Matrix<Float>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
+    let result = Matrix<Float>(rows: x.rows, columns: x.columns, repeatedValue: 0.0)
     result.grid = exp(x.grid)
     return result
 }
@@ -273,14 +273,14 @@ public func sum(_ x: Matrix<Double>, axies: MatrixAxies = .column) -> Matrix<Dou
     
     switch axies {
     case .column:
-        var result = Matrix<Double>(rows: 1, columns: x.columns, repeatedValue: 0.0)
+        let result = Matrix<Double>(rows: 1, columns: x.columns, repeatedValue: 0.0)
         for i in 0..<x.columns {
             result.grid[i] = sum(x[column: i])
         }
         return result
         
     case .row:
-        var result = Matrix<Double>(rows: x.rows, columns: 1, repeatedValue: 0.0)
+        let result = Matrix<Double>(rows: x.rows, columns: 1, repeatedValue: 0.0)
         for i in 0..<x.rows {
             result.grid[i] = sum(x[row: i])
         }
@@ -291,16 +291,17 @@ public func sum(_ x: Matrix<Double>, axies: MatrixAxies = .column) -> Matrix<Dou
 public func inv(_ x : Matrix<Float>) throws -> Matrix<Float> {
     precondition(x.rows == x.columns, "Matrix must be square")
     
-    var results = x
+    let results = x
     
     var ipiv = [__CLPK_integer](repeating: 0, count: x.rows * x.rows)
     var lwork = __CLPK_integer(x.columns * x.columns)
     var work = [CFloat](repeating: 0.0, count: Int(lwork))
     var error: __CLPK_integer = 0
     var nc = __CLPK_integer(x.columns)
-    
-    sgetrf_(&nc, &nc, &(results.grid), &nc, &ipiv, &error)
-    sgetri_(&nc, &(results.grid), &nc, &ipiv, &work, &lwork, &error)
+    var ncc = nc
+    var nccc = nc
+    sgetrf_(&nc, &nccc, &(results.grid), &ncc, &ipiv, &error)
+    sgetri_(&nc, &(results.grid), &ncc, &ipiv, &work, &lwork, &error)
     
     guard error == 0 else {
         throw MatrixError.matrixIsNotInvertable
@@ -312,16 +313,18 @@ public func inv(_ x : Matrix<Float>) throws -> Matrix<Float> {
 public func inv(_ x : Matrix<Double>) throws-> Matrix<Double> {
     precondition(x.rows == x.columns, "Matrix must be square")
     
-    var results = x
+    let results = x
     
     var ipiv = [__CLPK_integer](repeating: 0, count: x.rows * x.rows)
     var lwork = __CLPK_integer(x.columns * x.columns)
     var work = [CDouble](repeating: 0.0, count: Int(lwork))
     var error: __CLPK_integer = 0
     var nc = __CLPK_integer(x.columns)
+    var ncc = nc
+    var nccc = nc
     
-    dgetrf_(&nc, &nc, &(results.grid), &nc, &ipiv, &error)
-    dgetri_(&nc, &(results.grid), &nc, &ipiv, &work, &lwork, &error)
+    dgetrf_(&nc, &nccc, &(results.grid), &ncc, &ipiv, &error)
+    dgetri_(&nc, &(results.grid), &ncc, &ipiv, &work, &lwork, &error)
     
     guard error == 0 else {
         throw MatrixError.matrixIsNotInvertable
@@ -331,14 +334,14 @@ public func inv(_ x : Matrix<Double>) throws-> Matrix<Double> {
 }
 
 public func transpose(_ x: Matrix<Float>) -> Matrix<Float> {
-    var results = Matrix<Float>(rows: x.columns, columns: x.rows, repeatedValue: 0.0)
+    let results = Matrix<Float>(rows: x.columns, columns: x.rows, repeatedValue: 0.0)
     vDSP_mtrans(x.grid, 1, &(results.grid), 1, vDSP_Length(results.rows), vDSP_Length(results.columns))
     
     return results
 }
 
 public func transpose(_ x: Matrix<Double>) -> Matrix<Double> {
-    var results = Matrix<Double>(rows: x.columns, columns: x.rows, repeatedValue: 0.0)
+    let results = Matrix<Double>(rows: x.columns, columns: x.rows, repeatedValue: 0.0)
     vDSP_mtransD(x.grid, 1, &(results.grid), 1, vDSP_Length(results.rows), vDSP_Length(results.columns))
     
     return results
@@ -379,13 +382,13 @@ public func / (lhs: Matrix<Float>, rhs: Matrix<Float>) throws -> Matrix<Float> {
 }
 
 public func / (lhs: Matrix<Double>, rhs: Double) -> Matrix<Double> {
-    var result = Matrix<Double>(rows: lhs.rows, columns: lhs.columns, repeatedValue: 0.0)
+    let result = Matrix<Double>(rows: lhs.rows, columns: lhs.columns, repeatedValue: 0.0)
     result.grid = lhs.grid / rhs;
     return result;
 }
 
 public func / (lhs: Matrix<Float>, rhs: Float) -> Matrix<Float> {
-    var result = Matrix<Float>(rows: lhs.rows, columns: lhs.columns, repeatedValue: 0.0)
+    let result = Matrix<Float>(rows: lhs.rows, columns: lhs.columns, repeatedValue: 0.0)
     result.grid = lhs.grid / rhs;
     return result;
 }
