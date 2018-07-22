@@ -37,8 +37,8 @@ public enum MatrixAxies {
 public class Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
     public typealias MatrixElement = T
     
-    let rows: Int
-    let columns: Int
+    public let rows: Int
+    public let columns: Int
     var grid: [MatrixElement]
     
     public init(rows: Int, columns: Int, repeatedValue: MatrixElement) {
@@ -402,57 +402,59 @@ public postfix func ′ (value: Matrix<Double>) -> Matrix<Double> {
     return transpose(value)
 }
 
-public func solve(a A:Matrix<Float>, b B: inout Matrix<Float>) throws -> [LAInt] {
-    
-    let AT  = transpose(A)
-    var AAT = AT
-    
-    let equations = A.rows
-    
-    var numberOfEquations = LAInt(A.rows)
-    var columnsInA        = LAInt(A.columns)
-    var elementsInB       = LAInt(B.rows)
-    var bSolutionCount    = LAInt(1)
-    
-    var outputOk: LAInt = 0
-    var pivot = [LAInt](repeating: 0, count: equations)
-    
-    if B.columns == 1 {
-        sgesv_( &numberOfEquations, &bSolutionCount, &AAT.grid, &columnsInA, &pivot, &B.grid, &elementsInB, &outputOk)
-    }
-    else if B.columns > 1 {
-        let n = Int32(B.rows)
-        let cn = Int32(B.columns)
-        var v = [Float](repeating:0, count:B.rows)
+
+@discardableResult public func solve(a A:Matrix<Float>, b B: inout Matrix<Float>) throws -> [LAInt] {
+    let outB =  Matrix<Float>(rows:B.rows, columns:B.columns, repeatedValue:0)
+    var pivot = [LAInt]()
+    if B.columns >= 1 {
+        
+        var v = Matrix<Float>(rows:B.rows,
+                              columns:1,
+                              repeatedValue:0)
+        
         for c in 0..<B.columns {
-            let address = UnsafePointer(B.grid) + c
-            cblas_scopy(n, address, cn, &v, 1)
-            sgesv_( &numberOfEquations, &bSolutionCount, &AAT.grid, &columnsInA, &pivot, &v, &elementsInB, &outputOk)
-            AAT = AT
-            B[column:c] = v
+            v[column:0] = B[column:c]
+
+            pivot.append(contentsOf: try _solve(a: A, b: &v))
+            
+            outB[column:c] = v[column:0]
         }
+        
+        B = outB
     }
     else {
         throw MatrixError.equationsArgIsIllegal(Int(-1))
     }
-
-    
-    guard outputOk == 0 else {
-        if outputOk < 0 {
-            throw MatrixError.equationsArgIsIllegal(Int(-outputOk))
-        }
-        else {
-               throw MatrixError.equationsIsUnsolved(Int(outputOk))
-        }
-    }
-    
     return pivot
 }
 
-public func solve(a A:Matrix<Double>, b B: inout Matrix<Double>) throws -> [LAInt] {
+@discardableResult public func solve(a A:Matrix<Double>, b B: inout Matrix<Double>) throws -> [LAInt] {
+    let outB =  Matrix<Double>(rows:B.rows, columns:B.columns, repeatedValue:0)
+    var pivot = [LAInt]()
+    if B.columns >= 1 {
+        
+        var v = Matrix<Double>(rows:B.rows,
+                              columns:1,
+                              repeatedValue:0)
+        
+        for c in 0..<B.columns {
+            v[column:0] = B[column:c]
+            let p = try _solve(a: A, b: &v)
+            pivot.append(contentsOf: p)
+            outB[column:c] = v[column:0]
+        }
+        
+        B = outB
+    }
+    else {
+        throw MatrixError.equationsArgIsIllegal(Int(-1))
+    }
+    return pivot
+}
+
+@discardableResult private func _solve(a A:Matrix<Float>, b B: inout Matrix<Float>) throws -> [LAInt] {
     
-    let AT  = transpose(A)
-    var AAT = AT
+    let A  = transpose(A)
     
     let equations = A.rows
     
@@ -465,32 +467,67 @@ public func solve(a A:Matrix<Double>, b B: inout Matrix<Double>) throws -> [LAIn
     var pivot = [LAInt](repeating: 0, count: equations)
     
     if B.columns == 1 {
-        dgesv_( &numberOfEquations, &bSolutionCount, &AAT.grid, &columnsInA, &pivot, &B.grid, &elementsInB, &outputOk)
-    }
-    else if B.columns > 1 {
-        let n = Int32(B.rows)
-        let cn = Int32(B.columns)
-        var v = [Double](repeating:0, count:B.rows)
+        
+        var grid = [Float](A.grid)
         for c in 0..<B.columns {
-            let address = UnsafePointer(B.grid) + c
-            cblas_dcopy(n, address, cn, &v, 1)
-            dgesv_( &numberOfEquations, &bSolutionCount, &AAT.grid, &columnsInA, &pivot, &v, &elementsInB, &outputOk)
-            AAT = AT
+            
+            var v = B[column:c]
+            sgesv_( &numberOfEquations, &bSolutionCount, &grid, &columnsInA, &pivot, &v, &elementsInB, &outputOk)
+            
+            guard outputOk == 0 else {
+                if outputOk < 0 {
+                    throw MatrixError.equationsArgIsIllegal(Int(-outputOk))
+                }
+                else {
+                    throw MatrixError.equationsIsUnsolved(Int(outputOk))
+                }
+            }
+            
             B[column:c] = v
         }
     }
     else {
         throw MatrixError.equationsArgIsIllegal(Int(-1))
     }
+    return pivot
+}
+
+@discardableResult private func _solve(a A:Matrix<Double>, b B: inout Matrix<Double>) throws -> [LAInt] {
     
-    guard outputOk == 0 else {
-        if outputOk < 0 {
-            throw MatrixError.equationsArgIsIllegal(Int(-outputOk))
-        }
-        else {
-            throw MatrixError.equationsIsUnsolved(Int(outputOk))
+    let A  = transpose(A)
+    
+    let equations = A.rows
+    
+    var numberOfEquations = LAInt(A.rows)
+    var columnsInA        = LAInt(A.columns)
+    var elementsInB       = LAInt(B.rows)
+    var bSolutionCount    = LAInt(1)
+    
+    var outputOk: LAInt = 0
+    var pivot = [LAInt](repeating: 0, count: equations)
+    
+    if B.columns == 1 {
+        
+        var grid = [Double](A.grid)
+        for c in 0..<B.columns {
+            
+            var v = B[column:c]
+            dgesv_( &numberOfEquations, &bSolutionCount, &grid, &columnsInA, &pivot, &v, &elementsInB, &outputOk)
+            
+            guard outputOk == 0 else {
+                if outputOk < 0 {
+                    throw MatrixError.equationsArgIsIllegal(Int(-outputOk))
+                }
+                else {
+                    throw MatrixError.equationsIsUnsolved(Int(outputOk))
+                }
+            }
+            
+            B[column:c] = v
         }
     }
-    
+    else {
+        throw MatrixError.equationsArgIsIllegal(Int(-1))
+    }
     return pivot
 }
