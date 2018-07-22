@@ -159,7 +159,6 @@ public func sub(_ x: [Double], y: [Double]) -> [Double] {
     
     return results
 }
-
 // MARK: Multiply
 
 public func mul(_ x: [Float], y: [Float]) -> [Float] {
@@ -371,3 +370,25 @@ public func • (lhs: [Double], rhs: [Double]) -> Double {
 public func • (lhs: [Float], rhs: [Float]) -> Float {
     return dot(lhs, y: rhs)
 }
+
+//
+// MATLAB <--
+// DIFF Difference and approximate derivative.
+// DIFF(X), for a vector X, is [X(2)-X(1)  X(3)-X(2) ... X(n)-X(n-1)].
+//
+
+public func diff(_ x: [Float]) -> [Float] {
+    var results = [Float](x)
+    catlas_saxpby(Int32(results.count), 1.0, x, 1, -1, &results-1, 1)
+    results.removeLast()
+    return results
+}
+
+
+public func diff(_ x: [Double]) -> [Double] {
+    var results = [Double](x)
+    catlas_daxpby(Int32(results.count), 1.0, x, 1, -1, &results-1, 1)
+    results.removeLast()
+    return results
+}
+
