@@ -39,7 +39,7 @@ public class Matrix<T> where T: FloatingPoint, T: ExpressibleByFloatLiteral {
     
     public let rows: Int
     public let columns: Int
-    var grid: [MatrixElement]
+    public var grid: [MatrixElement]
     
     public init(rows: Int, columns: Int, repeatedValue: MatrixElement) {
         self.rows = rows
@@ -401,7 +401,6 @@ public postfix func ′ (value: Matrix<Float>) -> Matrix<Float> {
 public postfix func ′ (value: Matrix<Double>) -> Matrix<Double> {
     return transpose(value)
 }
-
 
 @discardableResult public func solve(a A:Matrix<Float>, b B: inout Matrix<Float>) throws -> [LAInt] {
     let outB =  Matrix<Float>(rows:B.rows, columns:B.columns, repeatedValue:0)
