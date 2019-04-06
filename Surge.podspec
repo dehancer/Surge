@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.osx.deployment_target = '10.9'
 
   s.source_files = 'Source/*.swift'
-  s.swift_version = "4.2"
+  s.swift_version = "5.0"
 
   s.frameworks = 'Accelerate'
 
